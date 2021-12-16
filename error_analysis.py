@@ -1,9 +1,11 @@
 #!/usr/bin/env python
-"""Error analysis on fairseq-generate output."""
-
+"""Error analysis on fairseq-generate output. Calculates
+word error rate and average edit distance for word pairs.
+"""
 
 import argparse
 import re
+from Levenshtein import distance
 
 from typing import Iterable, List, Tuple
 
@@ -13,9 +15,7 @@ from typing import Iterable, List, Tuple
 LOG_STATEMENT = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} | INFO"
 FINAL_STATEMENT = r"Generate (\w)+ with"
 
-
 Sequence = List[str]
-
 
 def _output(path: str) -> Iterable[Tuple[Sequence, Sequence, Sequence, float]]:
     """Generates source, target, hypothesis, and posterior score tuples."""
@@ -61,15 +61,23 @@ def _output(path: str) -> Iterable[Tuple[Sequence, Sequence, Sequence, float]]:
 def main(args: argparse.Namespace) -> None:
     error = 0
     total = 0
+    lev_sum = 0
     for _, tgt_lst, hyp_lst, _ in _output(args.pred):
         tgt = " ".join(tgt_lst)
         hyp = " ".join(hyp_lst)
         if tgt != hyp:
             error += 1
         total += 1
+        tgt_nosp = "".join(tgt_lst)
+        hyp_nosp = "".join(hyp_lst)
+        edit_dist = distance(tgt_nosp, hyp_nosp)
+        lev_sum += edit_dist
+        
     wer = 100 * error / total
-    print(f"WER:\t{wer:.2f}")
+    lev_avg = lev_sum / total
 
+    print(f"WER:\t{wer:.2f}")
+    print(f"EDIT AVG:\t{lev_avg:.2f}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
